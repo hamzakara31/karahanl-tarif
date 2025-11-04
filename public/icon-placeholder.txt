@@ -1,0 +1,12 @@
+Bu klasöre icon dosyaları eklemeniz gerekiyor:
+
+1. icon-192.png (192x192 piksel)
+2. icon-512.png (512x512 piksel)
+3. apple-icon-180.png (180x180 piksel)
+
+Not: Bu dosyaları manuel olarak oluşturmanız gerekiyor. İsterseniz online icon generator kullanabilirsiniz:
+- https://realfavicongenerator.net/
+- https://www.pwabuilder.com/imageGenerator
+
+Geçici olarak, uygulama icon olmadan da çalışacaktır.
+
