@@ -81,7 +81,7 @@ export class ImageAnalysisService {
     }
 
     // DetectedIngredient listesine dönüştür
-    for (const [id, data] of matchedIngredients.entries()) {
+    for (const [id, data] of Array.from(matchedIngredients.entries())) {
       ingredients.push({
         id: `detected-${id}`,
         name: data.ingredient.name,
