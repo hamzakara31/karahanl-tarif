@@ -121,14 +121,33 @@ export class AIRecipeService {
       const imagePromises = optimizedImages.map((file) => this.fileToBase64(file));
       const base64Images = await Promise.all(imagePromises);
 
-      // En hızlı modeli önce dene - güncel çalışan modeller (gemini-pro ve gemini-pro-vision kaldırıldı)
-      const visionModels = [
-        'gemini-1.5-flash-latest',
-        'gemini-1.5-flash',
-        'gemini-1.5-pro-latest',
-        'gemini-1.5-pro'
-      ];
+      // Önce mevcut modelleri API'den al (dinamik)
+      let visionModels: string[] = [];
+      try {
+        const modelsResponse = await fetch(
+          `https://generativelanguage.googleapis.com/v1/models?key=${this.apiKey}`
+        );
+        if (modelsResponse.ok) {
+          const modelsData = await modelsResponse.json();
+          const allModels = modelsData.models
+            ?.filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
+            ?.map((m: any) => m.name.replace('models/', '')) || [];
+          
+          // Görüntü desteği olan modelleri filtrele (flash, vision içerenler)
+          visionModels = allModels.filter((m: string) => 
+            m.includes('flash') || m.includes('vision')
+          );
+        }
+      } catch (err) {
+        console.warn('Model listesi alınamadı, varsayılan modeller kullanılacak');
+      }
+
+      // Eğer model listesi boşsa, sadece en güvenilir modelleri kullan
+      if (visionModels.length === 0) {
+        visionModels = ['gemini-1.5-flash-latest', 'gemini-1.5-flash'];
+      }
       
+      console.log('Kullanılacak modeller:', visionModels);
       let lastError: Error | null = null;
 
       // Modelleri sırayla dene
