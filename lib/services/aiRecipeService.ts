@@ -56,6 +56,55 @@ export class AIRecipeService {
   }
 
   /**
+   * Görüntüyü optimize et (boyut küçültme ve sıkıştırma)
+   */
+  private async optimizeImage(file: File, maxWidth: number = 800, maxHeight: number = 800, quality: number = 0.85): Promise<File> {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          // Boyutları optimize et
+          if (width > maxWidth || height > maxHeight) {
+            const ratio = Math.min(maxWidth / width, maxHeight / height);
+            width = width * ratio;
+            height = height * ratio;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const optimizedFile = new File([blob], file.name, {
+                  type: file.type,
+                  lastModified: Date.now(),
+                });
+                resolve(optimizedFile);
+              } else {
+                resolve(file); // Hata durumunda orijinal dosyayı döndür
+              }
+            },
+            file.type,
+            quality
+          );
+        };
+        img.onerror = () => resolve(file); // Hata durumunda orijinal dosyayı döndür
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => resolve(file); // Hata durumunda orijinal dosyayı döndür
+      reader.readAsDataURL(file);
+    });
+  }
+
+  /**
    * Google Gemini ile analiz
    */
   private async analyzeWithGemini(imageFiles: File[]): Promise<{
@@ -63,40 +112,18 @@ export class AIRecipeService {
     recipes: Recipe[];
   }> {
     try {
-      // Base64'e çevir
-      const imagePromises = imageFiles.map((file) => this.fileToBase64(file));
+      // Görüntüleri optimize et (daha hızlı API çağrısı için)
+      const optimizedImages = await Promise.all(
+        imageFiles.map((file) => this.optimizeImage(file))
+      );
+
+      // Base64'e çevir (optimize edilmiş görüntüler)
+      const imagePromises = optimizedImages.map((file) => this.fileToBase64(file));
       const base64Images = await Promise.all(imagePromises);
 
-      // Önce mevcut modelleri kontrol et
-      let visionModels: string[] = [];
-      try {
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models?key=${this.apiKey}`
-        );
-        if (response.ok) {
-          const data = await response.json();
-          const allModels = data.models
-            ?.filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
-            ?.map((m: any) => m.name.replace('models/', '')) || [];
-          
-          // Görüntü desteği olan modelleri filtrele
-          visionModels = allModels.filter((m: string) => 
-            m.includes('vision') || m.includes('flash') || m === 'gemini-pro'
-          );
-        }
-      } catch (err) {
-        console.warn('Model listesi alınamadı, varsayılan modeller kullanılacak');
-      }
-
-      // Eğer model listesi boşsa, varsayılan modelleri kullan
-      if (visionModels.length === 0) {
-        // En yaygın çalışan modeller (sırayla denenecek)
-        // gemini-pro en temel ve her zaman mevcut olan model
-        visionModels = ['gemini-pro'];
-      }
+      // En hızlı modeli önce dene (model listesi kontrolünü atla - zaman kaybı)
+      const visionModels = ['gemini-1.5-flash', 'gemini-pro-vision', 'gemini-pro'];
       
-      console.log('Kullanılacak modeller:', visionModels);
-
       let lastError: Error | null = null;
 
       // Modelleri sırayla dene
@@ -114,32 +141,26 @@ export class AIRecipeService {
                   {
                     parts: [
                       {
-                        text: `Bu fotoğraflardaki yemek malzemelerini tespit et ve bu malzemelerle yapılabilecek basit ve kolay tarifler öner. Türkçe cevap ver.
-                    
-Lütfen şu formatta JSON döndür (sadece JSON, başka metin yok):
+                        text: `Fotoğraflardaki malzemeleri tespit et ve bu malzemelerle basit tarifler öner. Türkçe cevap ver. Sadece JSON döndür:
 {
-  "ingredients": ["domates", "soğan", "yumurta"],
-  "recipes": [
-    {
-      "title": "Tarif Adı",
-      "description": "Kısa açıklama",
-      "ingredients": [
-        {"name": "Malzeme Adı", "amount": "2", "unit": "adet"}
-      ],
-      "instructions": ["Adım 1", "Adım 2"],
-      "prepTime": 10,
-      "cookTime": 15,
-      "difficulty": "Kolay",
-      "servings": 2,
-      "category": "Ana Yemek",
-      "tags": ["kolay", "hızlı"]
-    }
-  ]
+  "ingredients": ["domates", "soğan"],
+  "recipes": [{
+    "title": "Tarif Adı",
+    "description": "Kısa açıklama",
+    "ingredients": [{"name": "Malzeme", "amount": "2", "unit": "adet"}],
+    "instructions": ["Adım 1", "Adım 2"],
+    "prepTime": 10,
+    "cookTime": 15,
+    "difficulty": "Kolay",
+    "servings": 2,
+    "category": "Ana Yemek",
+    "tags": ["kolay"]
+  }]
 }`,
                       },
                       ...base64Images.map((base64, index) => ({
                         inline_data: {
-                          mime_type: imageFiles[index].type,
+                          mime_type: optimizedImages[index].type,
                           data: base64.split(',')[1], // data:image/... kısmını kaldır
                         },
                       })),
@@ -238,8 +259,13 @@ Lütfen şu formatta JSON döndür (sadece JSON, başka metin yok):
     recipes: Recipe[];
   }> {
     try {
-      // Base64'e çevir
-      const imagePromises = imageFiles.map((file) => this.fileToBase64(file));
+      // Görüntüleri optimize et (daha hızlı API çağrısı için)
+      const optimizedImages = await Promise.all(
+        imageFiles.map((file) => this.optimizeImage(file))
+      );
+
+      // Base64'e çevir (optimize edilmiş görüntüler)
+      const imagePromises = optimizedImages.map((file) => this.fileToBase64(file));
       const base64Images = await Promise.all(imagePromises);
 
       // OpenAI API'ye istek gönder
@@ -257,27 +283,21 @@ Lütfen şu formatta JSON döndür (sadece JSON, başka metin yok):
               content: [
                 {
                   type: 'text',
-                  text: `Bu fotoğraflardaki yemek malzemelerini tespit et ve bu malzemelerle yapılabilecek basit ve kolay tarifler öner. 
-                    
-Lütfen şu formatta JSON döndür:
+                  text: `Fotoğraflardaki malzemeleri tespit et ve basit tarifler öner. Türkçe cevap ver. Sadece JSON döndür:
 {
-  "ingredients": ["domates", "soğan", "yumurta"],
-  "recipes": [
-    {
-      "title": "Tarif Adı",
-      "description": "Kısa açıklama",
-      "ingredients": [
-        {"name": "Malzeme Adı", "amount": "2", "unit": "adet"}
-      ],
-      "instructions": ["Adım 1", "Adım 2"],
-      "prepTime": 10,
-      "cookTime": 15,
-      "difficulty": "Kolay",
-      "servings": 2,
-      "category": "Ana Yemek",
-      "tags": ["kolay", "hızlı"]
-    }
-  ]
+  "ingredients": ["domates", "soğan"],
+  "recipes": [{
+    "title": "Tarif Adı",
+    "description": "Kısa açıklama",
+    "ingredients": [{"name": "Malzeme", "amount": "2", "unit": "adet"}],
+    "instructions": ["Adım 1", "Adım 2"],
+    "prepTime": 10,
+    "cookTime": 15,
+    "difficulty": "Kolay",
+    "servings": 2,
+    "category": "Ana Yemek",
+    "tags": ["kolay"]
+  }]
 }`,
                 },
                 ...base64Images.map((base64) => ({
@@ -289,7 +309,7 @@ Lütfen şu formatta JSON döndür:
               ],
             },
           ],
-          max_tokens: 2000,
+          max_tokens: 1500, // Daha kısa prompt için daha az token
         }),
       });
 
