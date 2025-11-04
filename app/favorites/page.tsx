@@ -26,7 +26,7 @@ export default function FavoritesPage() {
     favoriteIds.forEach((id) => {
       let recipe = recipeService.getRecipeById(id);
       if (!recipe) {
-        recipe = AIRecipeStorage.getRecipeById(id);
+        recipe = AIRecipeStorage.getRecipeById(id) ?? undefined;
       }
       if (recipe) {
         recipes.push(recipe);
@@ -49,7 +49,7 @@ export default function FavoritesPage() {
       favoriteIds.forEach((id) => {
         let recipe = recipeService.getRecipeById(id);
         if (!recipe) {
-          recipe = AIRecipeStorage.getRecipeById(id);
+          recipe = AIRecipeStorage.getRecipeById(id) ?? undefined;
         }
         if (recipe) {
           recipes.push(recipe);
