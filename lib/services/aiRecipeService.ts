@@ -1,4 +1,4 @@
-import { DetectedIngredient, Recipe } from '@/types/models';
+import { DetectedIngredient, Recipe, Difficulty, RecipeCategory } from '@/types/models';
 
 export interface AIRecipeResponse {
   ingredients: string[];
@@ -225,9 +225,9 @@ export class AIRecipeService {
               instructions: r.instructions,
               prepTime: r.prepTime,
               cookTime: r.cookTime,
-              difficulty: r.difficulty as 'Kolay' | 'Orta' | 'Zor',
+              difficulty: this.mapDifficulty(r.difficulty),
               servings: r.servings,
-              category: r.category as any,
+              category: this.mapCategory(r.category),
               tags: r.tags,
               // Tahmini beslenme bilgisi (basit hesaplama)
               nutrition: this.estimateNutrition(r.ingredients, r.servings),
@@ -364,9 +364,9 @@ export class AIRecipeService {
         instructions: r.instructions,
         prepTime: r.prepTime,
         cookTime: r.cookTime,
-        difficulty: r.difficulty as 'Kolay' | 'Orta' | 'Zor',
+        difficulty: this.mapDifficulty(r.difficulty),
         servings: r.servings,
-        category: r.category as any,
+        category: this.mapCategory(r.category),
         tags: r.tags,
         // Tahmini beslenme bilgisi (basit hesaplama)
         nutrition: this.estimateNutrition(r.ingredients, r.servings),
@@ -426,6 +426,41 @@ export class AIRecipeService {
       fiber: Math.round(ingredientCount * 2 / Math.max(servings, 1)),
       sugar: Math.round(ingredientCount * 3 / Math.max(servings, 1)),
     };
+  }
+
+  /**
+   * String difficulty değerini Difficulty enum'a dönüştür
+   */
+  private mapDifficulty(difficulty: string): Difficulty {
+    switch (difficulty) {
+      case 'Kolay':
+        return Difficulty.EASY;
+      case 'Orta':
+        return Difficulty.MEDIUM;
+      case 'Zor':
+        return Difficulty.HARD;
+      default:
+        return Difficulty.EASY; // Varsayılan
+    }
+  }
+
+  /**
+   * String category değerini RecipeCategory enum'a dönüştür
+   */
+  private mapCategory(category: string): RecipeCategory {
+    // Kategori string'ini enum değerine map et
+    const categoryMap: Record<string, RecipeCategory> = {
+      'Ana Yemek': RecipeCategory.MAIN_DISH,
+      'Tatlı': RecipeCategory.DESSERT,
+      'Salata': RecipeCategory.SALAD,
+      'Çorba': RecipeCategory.SOUP,
+      'Aperatif': RecipeCategory.APPETIZER,
+      'İçecek': RecipeCategory.DRINK,
+      'Atıştırmalık': RecipeCategory.SNACK,
+      'Diğer': RecipeCategory.OTHER,
+    };
+
+    return categoryMap[category] || RecipeCategory.OTHER;
   }
 }
 
