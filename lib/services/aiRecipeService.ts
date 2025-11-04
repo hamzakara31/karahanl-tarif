@@ -121,13 +121,12 @@ export class AIRecipeService {
       const imagePromises = optimizedImages.map((file) => this.fileToBase64(file));
       const base64Images = await Promise.all(imagePromises);
 
-      // En hızlı modeli önce dene - güncel çalışan modeller
+      // En hızlı modeli önce dene - güncel çalışan modeller (gemini-pro ve gemini-pro-vision kaldırıldı)
       const visionModels = [
         'gemini-1.5-flash-latest',
         'gemini-1.5-flash',
         'gemini-1.5-pro-latest',
-        'gemini-1.5-pro',
-        'gemini-pro-vision'
+        'gemini-1.5-pro'
       ];
       
       let lastError: Error | null = null;
