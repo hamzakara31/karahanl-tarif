@@ -25,7 +25,7 @@ export default function RecipeDetailPage() {
     
     // Bulunamazsa AI tariflerinden ara
     if (!foundRecipe) {
-      foundRecipe = AIRecipeStorage.getRecipeById(recipeId);
+      foundRecipe = AIRecipeStorage.getRecipeById(recipeId) ?? undefined;
     }
     
     setRecipe(foundRecipe || null);
