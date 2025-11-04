@@ -3,7 +3,7 @@
 export async function checkAvailableGeminiModels(apiKey: string): Promise<string[]> {
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
+      `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`
     );
 
     if (!response.ok) {
