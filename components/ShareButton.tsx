@@ -1,6 +1,6 @@
 'use client';
 
-import { Share2, Copy, Check, Facebook, Twitter, Whatsapp } from 'lucide-react';
+import { Share2, Copy, Check, Facebook, Twitter, MessageCircle } from 'lucide-react';
 import { useState } from 'react';
 
 interface ShareButtonProps {
@@ -138,7 +138,7 @@ export default function ShareButton({ recipeId, recipeTitle, size = 'md' }: Shar
               onClick={shareToWhatsApp}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200 text-left"
             >
-              <Whatsapp className="w-5 h-5 text-green-500" />
+              <MessageCircle className="w-5 h-5 text-green-500" />
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 WhatsApp
               </span>
